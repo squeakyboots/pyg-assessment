@@ -1,0 +1,12 @@
+<component name="InspectionProjectProfileManager">
+  <profile version="1.0">
+    <option name="myName" value="Project Default" />
+    <inspection_tool class="Eslint" enabled="true" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="SqlResolveInspection" enabled="true" level="ERROR" enabled_by_default="true">
+      <scope name="Project Files" level="INFORMATION" enabled="true">
+        <option name="suppressForPossibleStringLiterals" value="true" />
+      </scope>
+      <option name="suppressForPossibleStringLiterals" value="true" />
+    </inspection_tool>
+  </profile>
+</component>
