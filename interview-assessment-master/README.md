@@ -1,4 +1,4 @@
-#Setup Instructions
+# Setup Instructions
 Build and start the docker container, via Windows:
 1. Open Developer Powershell for VS from Visual Studio or the start menu (Visual Studio must be installed)
 2. Navigate to the solution directory and run `nmake init`
