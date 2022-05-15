@@ -19,6 +19,15 @@ RUN sed -i "s/# alias ll/alias ll/" /root/.bashrc
 RUN sed -i "s/# alias ls/alias ls/" /root/.bashrc
 RUN sed -i "s/# alias l/alias l/" /root/.bashrc
 
+# Install and set up cron job and related tools
+# I couldn't get cron to start in the container so had the app just run a while loop
+#RUN apt-get -y install cron
+#RUN apt-get -y install vim
+#COPY app_cron /etc/cron.d/app_cron
+#RUN chmod 0644 /etc/cron.d/app_cron
+#RUN crontab /etc/cron.d/app_cron
+#CMD /etc/init.d/crond start
+
 # App
 RUN mkdir -p ${WORKDIR}
 WORKDIR ${WORKDIR}
