@@ -17,3 +17,5 @@ Purchases and portfolio details will be logged to `/app/storage/logs/app.log` an
 
 [5m34s video overview](https://drive.google.com/file/d/1lgHkBNaz2__Q-BPsPHr9gpaMJs3s-2UL/view?usp=drivesdk). You may need to download the video or manually set the video quality in the embedded player if the quality 
 of the stream is poor.
+
+Sphinx docs can be built from `/docs` by running `make html`.
