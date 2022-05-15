@@ -9,6 +9,8 @@ python = "^3.9"
 requests = "^2.25.1"
 PyMySQL = "^1.0.2"
 cryptography = "^3.4.7"
+mysql-connector-python = "^8.0.29"
+Sphinx = "^4.5.0"
 
 [tool.poetry.dev-dependencies]
 python-dotenv = "^0.13.0"
