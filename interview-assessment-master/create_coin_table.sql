@@ -1,4 +1,4 @@
-CREATE TABLE [IF NOT EXISTS] `Coin` (
+CREATE TABLE IF NOT EXISTS `Coin` (
    `ID` int NOT NULL AUTO_INCREMENT,
    `CoinID` varchar(10) NOT NULL,
    `CoinSymbol` varchar(5) NOT NULL,
