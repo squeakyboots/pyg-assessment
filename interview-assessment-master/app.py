@@ -7,13 +7,15 @@ from mysql.connector import connect, Error
 import logging
 from logging.handlers import TimedRotatingFileHandler
 from sys import stdout
+# TODO: get cron working in docker
+from time import sleep
 
-console_handler = logging.StreamHandler(stdout)
-timed_rotate_handler = TimedRotatingFileHandler('storage/app.log', when='D', interval=7, backupCount=2)
-logger = logging.getLogger("Rotating Log")
-
+CONSOLE_HANDLER = logging.StreamHandler(stdout)
+TIMED_ROTATE_HANDLER = TimedRotatingFileHandler(os.path.abspath('/app/storage/logs/app.log'), when='D', interval=7, backupCount=2)
+LOGGER = logging.getLogger("Rotating Log")
 load_dotenv(find_dotenv(raise_error_if_not_found=True))
 
+RUN_FREQUENCY = 3600
 DB_HOST = os.getenv("DB_HOST")
 DB_USERNAME = os.getenv("DB_USERNAME")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
@@ -30,7 +32,7 @@ def top_three_by_market_cap():
     try:
         coins = crypto_api.get_coins()[:3]
     except Exception as err:
-        logger.critical(f'Error getting top three coins via API: {err}')
+        LOGGER.critical(f'Error getting top three coins via API: {err}')
         return ()
     return tuple(coins)
 
@@ -57,11 +59,11 @@ def write_to_db(coins):
             with connection.cursor() as cursor:
                 cursor.executemany(query, coin_records)
                 connection.commit()
-            logger.info('Successfully wrote coins to DB.')
+            LOGGER.info('Successfully wrote coins to DB.')
     except Error as err:
-        logger.critical(f'MySQL Error: {err}')
+        LOGGER.critical(f'MySQL Error: {err}')
     except Exception as err:
-        logger.critical(f'Unknown exception: {err}')
+        LOGGER.critical(f'Unknown exception: {err}')
 
 
 def decide_trade(coins, buy_amount=1):
@@ -76,7 +78,7 @@ def decide_trade(coins, buy_amount=1):
         if coin['current_price'] < price_history_avg:
             crypto_api.submit_order(coin['id'], buy_amount, coin['current_price'])
             amount_paid = coin['current_price'] * buy_amount
-            logger.info(f"{buy_amount} {coin['name']} purchased for {amount_paid}!")
+            LOGGER.info(f"{buy_amount} {coin['name']} purchased for {amount_paid:.2f}!")
             try:
                 with connect(host=DB_HOST, port=DB_PORT, user=DB_USERNAME, password=DB_PASSWORD,
                              database=DB_DATABASE) as connection:
@@ -94,13 +96,13 @@ def decide_trade(coins, buy_amount=1):
                         """
                         cursor.execute(update_portfolio_query)
                         connection.commit()
-                    logger.info('Successfully updated purchase to the portfolio.')
+                    LOGGER.info('Successfully updated purchase to the portfolio.')
             except Error as err:
-                logger.critical(f'MySQL Error: {err}')
-                logger.critical(f'Possible problem query: {get_pkid_query}')
-                logger.critical(f'Possible problem query: {update_portfolio_query}')
+                LOGGER.critical(f'MySQL Error: {err}')
+                LOGGER.critical(f'Possible problem query: {get_pkid_query}')
+                LOGGER.critical(f'Possible problem query: {update_portfolio_query}')
             except Exception as err:
-                logger.critical(f'Unknown exception: {err}')
+                LOGGER.critical(f'Unknown exception: {err}')
 
 
 # TODO: This could (and should) probably be done in MySQL directly, maybe as a job or stored procedure
@@ -110,21 +112,19 @@ def update_portfolio_gain():
     :rtype: None
     """
     try:
-        logger.info('Starting update of portfolio gains')
+        LOGGER.info('Starting update of portfolio gains')
         with connect(host=DB_HOST, port=DB_PORT, user=DB_USERNAME, password=DB_PASSWORD,
                      database=DB_DATABASE) as connection:
             with connection.cursor() as cursor:
                 get_portfolio_query = f"SELECT * FROM Portfolio LIMIT 20"
                 cursor.execute(get_portfolio_query)
-                print('fired1')
                 portfolio = cursor.fetchall()
 
                 # coin formatted: (1, 1, 5, Decimal('147889.00') -> (ID, CoinID [FK], Qty, paid)
                 for coin in portfolio:
-                    get_coin_value_query = f"SELECT CoinCurrentPrice FROM Coin WHERE ID={coin[1]}"
+                    get_coin_value_query = f"SELECT CoinCurrentPrice,CoinName FROM Coin WHERE ID={coin[1]}"
                     cursor.execute(get_coin_value_query)
-                    current_price = cursor.fetchone()[0]
-                    print('fired2')
+                    current_price, coin_name = cursor.fetchone()
 
                     current_portfolio_value = coin[2] * current_price
                     gain = ((current_portfolio_value - coin[3]) / coin[3]) * 100
@@ -132,38 +132,40 @@ def update_portfolio_gain():
                     gain_update_query = f"UPDATE Portfolio SET PortfolioGain = {gain} WHERE ID={coin[0]}"
                     cursor.execute(gain_update_query)
                     connection.commit()
-                    print('fired3')
 
-                    logger.info(f'CoinID {coin[0]} - Qty: {coin[2]} Gain: {gain:.2f}')
-        logger.info('Ended update of portfolio gains')
+                    LOGGER.info(f'{coin_name} - Qty: {coin[2]} Gain: {gain:.2f}')
+        LOGGER.info('Ended update of portfolio gains')
     except Error as err:
-        logger.critical(f'MySQL Error: {err}')
-        logger.critical(f'Possible problem query: {get_portfolio_query}')
-        logger.critical(f'Possible problem query: {get_coin_value_query}')
-        logger.critical(f'Possible problem query: {gain_update_query}')
+        LOGGER.critical(f'MySQL Error: {err}')
+        LOGGER.critical(f'Possible problem query: {get_portfolio_query}')
+        LOGGER.critical(f'Possible problem query: {get_coin_value_query}')
+        LOGGER.critical(f'Possible problem query: {gain_update_query}')
     except Exception as err:
-        logger.critical(f'Unknown exception: {err}')
+        LOGGER.critical(f'Unknown exception: {err}')
 
 
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s - %(levelname)s: %(message)s', level=logging.INFO,
-                        handlers=[timed_rotate_handler, console_handler])
-    logging.info('Crypto sync started.')
-    coins = top_three_by_market_cap()
-    write_to_db(coins)
-    decide_trade(coins)
-    update_portfolio_gain()
+                        handlers=[TIMED_ROTATE_HANDLER, CONSOLE_HANDLER])
 
-    logging.info('Crypto sync ended.')
+    with open('create_coin_table.sql') as query_file:
+        create_coin_table_query = query_file.read()
+    with open('create_portfolio_table.sql') as query_file:
+        create_portfolio_table_query = query_file.read()
 
+    with connect(host=DB_HOST, port=DB_PORT, user=DB_USERNAME, password=DB_PASSWORD,
+                 database=DB_DATABASE) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(create_coin_table_query)
+            connection.commit()
+            cursor.execute(create_portfolio_table_query)
+            connection.commit()
 
-
-# try:
-#     with connect(host=DB_HOST, port=DB_PORT, user=DB_USERNAME, password=DB_PASSWORD) as connection:
-#         query = "SHOW DATABASES"
-#         with connection.cursor() as cursor:
-#             cursor.execute(query)
-#             for db in cursor:
-#                 print(db)
-# except Error as e:
-#     print(e)
+    while True:
+        logging.info('Crypto sync started.')
+        coins = top_three_by_market_cap()
+        write_to_db(coins)
+        decide_trade(coins)
+        update_portfolio_gain()
+        logging.info('Crypto sync ended.')
+        sleep(RUN_FREQUENCY)
