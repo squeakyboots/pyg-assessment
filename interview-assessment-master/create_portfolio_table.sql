@@ -1,4 +1,4 @@
-CREATE TABLE `Portfolio` (
+CREATE TABLE [IF NOT EXISTS] `Portfolio` (
    `ID` int NOT NULL AUTO_INCREMENT,
    `CoinID` int NOT NULL,
    `PortfolioQuantity` int NOT NULL,
