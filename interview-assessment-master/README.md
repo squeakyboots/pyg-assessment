@@ -1,4 +1,12 @@
 # Setup Instructions
+Create an .env file with the right information, for example:  
+APP_ENV=local  
+DB_HOST=host.docker.internal  
+DB_USERNAME=docker  
+DB_PASSWORD=secret  
+DB_DATABASE=crypto  
+DB_PORT=33060  
+
 Build and start the docker container, via Windows:
 1. Open Developer Powershell for VS from Visual Studio or the start menu (Visual Studio must be installed)
 2. Navigate to the solution directory and run `nmake init`
